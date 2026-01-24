@@ -8,9 +8,10 @@ import { useAuth } from "@/hooks/useAuth";
 import { useCreateBooking, useProcessPayment } from "@/hooks/useBookings";
 import { useGroupedShowtimes, type Showtime } from "@/hooks/useShowtimes";
 import { useToast } from "@/hooks/use-toast";
-import { Loader2, Ticket, CreditCard, CheckCircle, ArrowLeft } from "lucide-react";
+import { Ticket, CheckCircle, ArrowLeft, Receipt, Calendar, MapPin } from "lucide-react";
 import TheaterSelection from "@/components/booking/TheaterSelection";
 import SeatSelection from "@/components/booking/SeatSelection";
+import PaymentPage from "@/components/booking/PaymentPage";
 import type { Movie } from "@/hooks/useMovies";
 
 interface BookingModalProps {
@@ -128,7 +129,7 @@ const BookingModal = ({ movie, isOpen, onClose }: BookingModalProps) => {
 
   return (
     <Dialog open={isOpen} onOpenChange={handleClose}>
-      <DialogContent className="sm:max-w-lg bg-card border-border max-h-[90vh] overflow-hidden">
+      <DialogContent className="sm:max-w-lg bg-card border-border max-h-[90vh] overflow-hidden flex flex-col">
         <DialogHeader>
           <DialogTitle className="text-foreground">
             {getStepTitle()}
@@ -234,41 +235,18 @@ const BookingModal = ({ movie, isOpen, onClose }: BookingModalProps) => {
           </div>
         )}
 
-        {step === "payment" && (
-          <div className="space-y-6 py-4">
-            <div className="bg-secondary/50 rounded-lg p-4 text-center">
-              <CreditCard className="h-12 w-12 mx-auto text-primary mb-3" />
-              <h3 className="font-semibold text-foreground">Mock Payment</h3>
-              <p className="text-sm text-muted-foreground mt-1">
-                This is a simulated payment for testing
-              </p>
-              {selectedSeatIds.length > 0 && (
-                <p className="text-xs text-muted-foreground mt-2">
-                  Seats: {selectedSeatIds.sort().join(", ")}
-                </p>
-              )}
-              <div className="text-2xl font-bold text-primary mt-4">
-                ₹{totalAmount}
-              </div>
-            </div>
-
-            <Button 
-              onClick={handlePayment} 
-              className="w-full gap-2"
-              disabled={processPayment.isPending || createBooking.isPending}
-            >
-              {processPayment.isPending || createBooking.isPending ? (
-                <>
-                  <Loader2 className="h-4 w-4 animate-spin" />
-                  Processing Payment...
-                </>
-              ) : (
-                <>
-                  <CreditCard className="h-4 w-4" />
-                  Pay ₹{totalAmount}
-                </>
-              )}
-            </Button>
+        {step === "payment" && selectedShowtime && (
+          <div className="py-4">
+            <PaymentPage
+              movie={movie}
+              showtime={selectedShowtime}
+              selectedSeats={selectedSeatIds}
+              totalAmount={totalAmount}
+              pricePerTicket={price}
+              onPayment={handlePayment}
+              onBack={() => setStep("seats")}
+              isProcessing={processPayment.isPending || createBooking.isPending}
+            />
           </div>
         )}
 
@@ -276,33 +254,74 @@ const BookingModal = ({ movie, isOpen, onClose }: BookingModalProps) => {
           <div className="space-y-6 py-4 text-center">
             <CheckCircle className="h-16 w-16 mx-auto text-green-500" />
             <div>
-              <h3 className="text-xl font-bold text-foreground">Booking Successful!</h3>
+              <h3 className="text-xl font-bold text-foreground">Booking Confirmed!</h3>
               <p className="text-muted-foreground mt-2">
-                Your tickets for {movie.title} have been booked.
+                Your tickets have been booked successfully
               </p>
             </div>
-            <div className="bg-secondary/50 rounded-lg p-4 text-left space-y-2">
-              <div className="text-sm">
-                <span className="text-muted-foreground">Theater:</span>
-                <span className="text-foreground ml-2">{selectedShowtime.theater_name}</span>
+
+            {/* Booking Receipt */}
+            <div className="bg-secondary/50 rounded-lg p-4 text-left space-y-4">
+              <div className="flex items-center gap-2 text-primary font-semibold">
+                <Receipt className="h-4 w-4" />
+                Booking Receipt
               </div>
-              <div className="text-sm">
-                <span className="text-muted-foreground">Date & Time:</span>
-                <span className="text-foreground ml-2">
-                  {selectedShowtime.show_date} at {selectedShowtime.show_time.slice(0, 5)}
-                </span>
+              
+              <div className="flex gap-3">
+                <img
+                  src={movie.poster_url || "/placeholder.svg"}
+                  alt={movie.title}
+                  className="w-14 h-20 object-cover rounded"
+                />
+                <div className="flex-1">
+                  <p className="font-semibold text-foreground">{movie.title}</p>
+                  <p className="text-xs text-muted-foreground">
+                    {movie.language} • {movie.duration}
+                  </p>
+                </div>
               </div>
-              <div className="text-sm">
-                <span className="text-muted-foreground">Seats:</span>
-                <span className="text-foreground ml-2">
-                  {selectedSeatIds.length > 0 ? selectedSeatIds.sort().join(", ") : seatsCount}
-                </span>
+
+              <div className="space-y-2 text-sm">
+                <div className="flex items-start gap-2">
+                  <MapPin className="h-4 w-4 text-muted-foreground mt-0.5" />
+                  <span className="text-foreground">{selectedShowtime.theater_name}</span>
+                </div>
+                <div className="flex items-start gap-2">
+                  <Calendar className="h-4 w-4 text-muted-foreground mt-0.5" />
+                  <span className="text-foreground">
+                    {selectedShowtime.show_date} at {selectedShowtime.show_time.slice(0, 5)}
+                  </span>
+                </div>
               </div>
-              <div className="pt-2 border-t border-border">
-                <span className="text-muted-foreground text-sm">Total Paid:</span>
-                <span className="text-primary font-bold ml-2">₹{totalAmount}</span>
+
+              <div className="border-t border-dashed border-border pt-3 space-y-2">
+                <div className="flex justify-between text-sm">
+                  <span className="text-muted-foreground">Seats</span>
+                  <span className="text-foreground font-medium">
+                    {selectedSeatIds.length > 0 ? selectedSeatIds.sort().join(", ") : `${seatsCount} seat(s)`}
+                  </span>
+                </div>
+                <div className="flex justify-between text-sm">
+                  <span className="text-muted-foreground">Tickets</span>
+                  <span className="text-foreground">{seatsCount}</span>
+                </div>
+                <div className="flex justify-between font-bold pt-2 border-t border-border">
+                  <span className="text-foreground">Amount Paid</span>
+                  <span className="text-primary">₹{totalAmount}</span>
+                </div>
               </div>
+
+              {bookingId && (
+                <div className="text-xs text-center text-muted-foreground pt-2 border-t border-border">
+                  Booking ID: {bookingId.slice(0, 8).toUpperCase()}
+                </div>
+              )}
             </div>
+
+            <p className="text-xs text-muted-foreground">
+              📧 Confirmation email has been sent to your registered email
+            </p>
+
             <Button onClick={handleClose} className="w-full">
               Done
             </Button>
