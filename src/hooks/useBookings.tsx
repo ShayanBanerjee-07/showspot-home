@@ -42,10 +42,11 @@ export const useCreateBooking = () => {
   const { toast } = useToast();
 
   return useMutation({
-    mutationFn: async ({ movieId, seatsCount, totalAmount }: { 
+    mutationFn: async ({ movieId, seatsCount, totalAmount, showtimeId }: { 
       movieId: string; 
       seatsCount: number; 
       totalAmount: number;
+      showtimeId?: string;
     }) => {
       if (!user) throw new Error("User not authenticated");
 
@@ -54,6 +55,7 @@ export const useCreateBooking = () => {
         .insert({
           user_id: user.id,
           movie_id: movieId,
+          showtime_id: showtimeId || null,
           seats_count: seatsCount,
           total_amount: totalAmount,
           status: "pending",
